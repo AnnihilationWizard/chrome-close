@@ -1,8 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 // A Bash command that may start a headless Chrome: a direct launch or a
-// browser-automation tool.
-const LAUNCH = /--headless|puppeteer|playwright|chrom(e|ium)|headless[_-]shell|lighthouse|selenium|chromedp|webdriver/i
+// browser-automation tool. A bare "chrome" is not enough: paths and messages
+// that only mention Chrome must not be held up by leftovers.
+const LAUNCH = /--headless|puppeteer|playwright|headless[_-]shell|lighthouse|selenium|chromedp|webdriver/i
 
 // Commands that only look at or end processes: they stay allowed so the
 // leftovers can be cleaned up.

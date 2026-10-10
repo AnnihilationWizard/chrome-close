@@ -65,6 +65,14 @@ test('lets cleanup and unrelated commands run while one is running', async ($, o
   expect(ran).toEqual(['pkill -f "Chrome for Testing"', 'git status'])
 })
 
+test('lets commands that only mention Chrome run while leftovers remain', async ($, on) => {
+  const ran: string[] = []
+  world(on, () => ORPHANS, ran)
+  await $.tool.call({ tool: 'Bash', command: 'cd ~/mods/chrome-close && git commit -m "fix Chrome check"' })
+  await $.tool.call({ tool: 'Bash', command: 'grep -ri chromium src' })
+  expect(ran).toHaveLength(2)
+})
+
 test('tells Claude when a launch left processes behind', async ($, on) => {
   const ran: string[] = []
   let table = IDLE
