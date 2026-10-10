@@ -1,39 +1,132 @@
 # chrome-close
 
-**One headless Chrome at a time.** When Claude runs a Bash command that may start a headless Chrome (`--headless`, Puppeteer, Playwright, Selenium, Lighthouse, ...), the mod first checks whether a headless Chrome, or Chrome helpers left behind by one, is still running. If so, the command is refused and Claude is told which PIDs to end.
+<p align="center">
+  <strong>One headless Chrome at a time.</strong><br>
+  A Claude Code mod that refuses a new headless Chrome while another one, or the helpers it left behind, still runs.
+</p>
 
-## Why
+<p align="center">
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.0.0-green.svg" alt="Version 1.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://code.claude.com/docs"><img src="https://img.shields.io/badge/Platform-Claude%20Code-D97757.svg" alt="Platform: Claude Code"></a>
+  <a href="hooks/register.ts"><img src="https://img.shields.io/badge/Type-Function%20hooks%20mod-6E7681.svg" alt="Function hooks mod"></a>
+  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-9%20passing-3FB950.svg" alt="9 tests passing"></a>
+</p>
 
-A test script that closes only Chrome's main process leaves its renderer, GPU and utility helpers running. Each run adds more, and memory use climbs.
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#development">Development</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
-## What it does
+A browser test that closes only Chrome's main process leaves its renderer, GPU and utility helpers running. Each run Claude starts adds more, and memory use climbs. chrome-close checks for a running headless Chrome before Claude runs a command that may start one, refuses the command while any remains, and tells Claude which processes to end.
 
-- **Before a launch**: refuses it while any headless Chrome runs: a browser started with `--headless`, every process beneath it, and Chrome helpers orphaned to `launchd` after their browser exited. Your desktop Chrome is not counted.
-- **After a launch**: if the command left headless Chrome processes behind, Claude is told to end them, and the status line shows how many remain.
-- `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof` always run, so leftovers can be cleaned up.
-- If the process check itself fails, the command runs as usual.
+> [!NOTE]
+> chrome-close is built on Claude Code's function-hooks mod API, which is in early access and may change between releases.
 
-## Limits
+## Features
 
-- It guards only commands Claude runs through Bash. Tests you run in another terminal, an IDE or CI are not limited.
-- It does not kill anything itself. Leftovers keep their memory until someone ends them.
-- It recognises a launch by keywords in the command. A command such as `npm test` that starts Chrome without saying so is not caught before it runs, though leftovers it leaves are reported afterwards.
+- **One at a time:** A Bash command that may start a headless Chrome is refused while another headless Chrome runs.
+- **Catches leftovers:** Chrome helpers orphaned after their headless browser exited count as running, so they block the next launch until they are ended.
+- **Says what to end:** The refusal lists the PIDs to `kill`, and Claude is told after a command that left processes behind.
+- **Status line:** Shows how many headless Chrome processes remain.
+- **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top` and `htop` are never refused.
+- **Your Chrome is left alone:** A desktop Chrome and its helpers are not counted, and the mod never kills anything itself.
+
+| Command Claude runs | While a headless Chrome or leftover helpers run |
+| --- | --- |
+| `node shot.mjs --headless`, `npx playwright test`, `node puppeteer-test.js` | Refused, with the PIDs to end |
+| `kill 901 902`, `pkill -f "Chrome for Testing"` | Runs |
+| `git status`, `cd chrome-close`, `grep -ri chromium src` | Runs |
 
 ## Install
 
+In a Claude Code **terminal** session, run:
+
 ```
-/plugin marketplace add AnnihilationWizard/mods
-/plugin install chrome-close@annihilationwizard-mods
+/plugin install chrome-close --marketplace AnnihilationWizard/chrome-close
 ```
+
+1. Answer `y` to add the `github:AnnihilationWizard/chrome-close` marketplace.
+2. Choose a scope. The **user** scope loads the mod in every session.
+3. Claude Code confirms `Installed chrome-close. Plugin is now active.` The mod works in the current session without a restart.
+
+It is also listed in the [AnnihilationWizard/mods](https://github.com/AnnihilationWizard/mods) marketplace as `chrome-close@annihilationwizard-mods`.
+
+To update later, run `claude plugin update`, then `/reload-plugins`.
+
+<details>
+<summary>Run from a local clone instead</summary>
+
+```bash
+git clone https://github.com/AnnihilationWizard/chrome-close.git
+claude --plugin-dir ./chrome-close
+```
+
+To load a clone in every session, add it to the `env` block of `~/.claude/settings.json`:
+
+```json
+{
+  "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/path/to/chrome-close" }
+}
+```
+
+</details>
+
+## Usage
+
+Once installed, there is nothing to configure. When Claude tries to start a headless Chrome while one still runs, it reads a refusal such as:
+
+```text
+chrome-close: only one headless Chrome may run at a time, and 2 headless Chrome process(es)
+still running (PID 901 902). Wait for it to finish, or end the leftovers first: kill 901 902
+```
+
+### What counts as a launch
+
+A Bash command that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
+
+### What counts as running
+
+From `ps`: a Chrome or Chromium process started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) whose parent is `launchd`/`init` because their browser already exited.
+
+### Limitations
+
+- Only commands Claude runs through Bash are checked. Tests you run in another terminal, an IDE or CI are not limited.
+- The mod does not end processes. Leftovers keep their memory until someone kills them, and they block every launch until then.
+- A command that starts Chrome without any of the keywords, such as `npm test`, is not refused beforehand. Leftovers it creates are still reported when it ends.
+- A command run in the background is not checked for leftovers when it returns.
+- If `ps` fails, the command runs unchecked rather than blocking Bash.
 
 ## Development
 
 ```bash
-claude plugin validate .
-claude plugin test .
-tsc -p .
+claude plugin validate .   # manifest, marketplace file and hooks module
+claude plugin test .       # hooks/*.test.ts against the engine
 ```
+
+After Claude Code first loads the mod, it writes the API types to `.claude-plugin/types/` (git-ignored). Type-check against them with TypeScript 5.4 or newer:
+
+```bash
+npx -p typescript@5 tsc -p .
+```
+
+Run `claude --plugin-dir .` to try changes. In an interactive session the folder is watched, and saving a file reloads the mod.
+
+## Project Structure
+
+```text
+.claude-plugin/   plugin.json manifest and marketplace.json
+hooks/            hooks.json, the hooks module and its tests
+```
+
+## Contributing
+
+Bug reports and ideas are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an [issue](https://github.com/AnnihilationWizard/chrome-close/issues) or pull request, and follow [SECURITY.md](SECURITY.md) for security reports.
 
 ## License
 
-[MIT License](LICENSE).
+[MIT License](LICENSE). Copyright © 2026 [AnnihilationWizard](https://github.com/AnnihilationWizard).

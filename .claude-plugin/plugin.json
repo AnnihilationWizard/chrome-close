@@ -1,7 +1,7 @@
 {
   "name": "chrome-close",
-  "version": "0.1.0",
-  "description": "Allow one headless Chrome at a time: refuse Claude's Bash launches while any headless Chrome or its leftover helpers still run",
+  "version": "1.0.0",
+  "description": "Allow one headless Chrome at a time: refuse Claude's launches while any headless Chrome or its leftover helpers still run",
   "author": {
     "name": "AnnihilationWizard",
     "url": "https://github.com/AnnihilationWizard"

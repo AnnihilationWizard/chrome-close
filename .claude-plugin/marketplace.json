@@ -1,0 +1,9 @@
+{
+  "name": "chrome-close",
+  "description": "A Claude Code mod that allows one headless Chrome at a time and flags helpers left running",
+  "owner": {
+    "name": "AnnihilationWizard",
+    "url": "https://github.com/AnnihilationWizard"
+  },
+  "plugins": [{ "name": "chrome-close", "source": "./" }]
+}
