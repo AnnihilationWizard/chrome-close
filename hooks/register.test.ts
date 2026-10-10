@@ -11,21 +11,34 @@ const ps = (...rows: [number, number, string][]) => rows.map(([pid, ppid, c]) =>
 
 const IDLE = ps([500, 1, DESKTOP], [501, 500, `${DESKTOP_HELPER} --type=gpu-process`], [77, 1, '/usr/bin/node app.js'])
 const RUNNING = ps([500, 1, DESKTOP], [900, 880, `${CFT} --headless=new --remote-debugging-port=0`], [901, 900, `${HELPER} --type=renderer`])
+const SHELL = '/bin/zsh -c source ~/.claude/shell-snapshots/snapshot.sh && eval \'"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new about:blank\''
+const WRAPPED = ps([880, 70, SHELL], [900, 880, `${CFT} --headless=new --remote-debugging-port=0`], [901, 900, `${HELPER} --type=renderer`])
 const ORPHANS = ps([500, 1, DESKTOP], [901, 1, `${HELPER} --type=renderer`], [902, 1, `${HELPER} --type=gpu-process`])
 
 // The engine beneath: `ps` answers from a fixed table, and Bash records what ran.
-const world = (on: On, table: () => string, ran: string[], after?: () => void) => {
+// Returns the status lines the plugin pinned, in order.
+const world = (on: On, table: () => string, ran: string[], after?: () => void, result: object = {}) => {
+  const lines: (string | undefined)[] = []
+  on('ui.status', ($, e) => {
+    lines.push(e.text)
+    return { value: undefined }
+  })
   on('process.run', () => ({ value: { exitCode: 0, stdout: table(), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('tool.call', { tool: 'Bash' }, ($, e) => {
     ran.push(e.command)
     after?.()
-    return { result: { stdout: 'ok', stderr: '', interrupted: false } } as never
+    return { result: { stdout: 'ok', stderr: '', interrupted: false, ...result } } as never
   })
+  return lines
 }
 
 test('finds a headless browser and its helpers, not a desktop Chrome', () => {
   expect(headlessChrome(parsePs(IDLE))).toEqual([])
   expect(headlessChrome(parsePs(RUNNING)).map(p => p.pid).sort()).toEqual([900, 901])
+})
+
+test('does not count the shell that launched a headless Chrome', () => {
+  expect(headlessChrome(parsePs(WRAPPED)).map(p => p.pid).sort()).toEqual([900, 901])
 })
 
 test('finds helpers orphaned after their headless browser exited', () => {
@@ -91,4 +104,34 @@ test('a failing process check does not block the command', async ($, on) => {
   })
   await $.tool.call({ tool: 'Bash', command: 'node puppeteer-test.js' })
   expect(ran).toEqual(['node puppeteer-test.js'])
+})
+
+test('says a backgrounded command is still running, not finished', async ($, on) => {
+  const ran: string[] = []
+  let table = IDLE
+  const lines = world(on, () => table, ran, () => { table = RUNNING }, { backgroundTaskId: 'b51a3ynq6' })
+  const r = await $.tool.call({ tool: 'Bash', command: 'node puppeteer-test.js' })
+  const note = (r.context ?? []).join('\n')
+  expect(note).toMatch(/moved to the background and is still running/)
+  expect(note).not.toMatch(/finished/)
+  expect(lines.at(-1)).toBe('2 headless Chrome processes running')
+})
+
+test('status line names the count once, without the plugin name', async ($, on) => {
+  const ran: string[] = []
+  let table = IDLE
+  const lines = world(on, () => table, ran, () => { table = ORPHANS })
+  await $.tool.call({ tool: 'Bash', command: 'node puppeteer-test.js' })
+  expect(lines.at(-1)).toBe('2 headless Chrome processes left')
+})
+
+test('a kill that ends the leftovers clears the status line', async ($, on) => {
+  const ran: string[] = []
+  let table = ORPHANS
+  const lines = world(on, () => table, ran, () => { if (ran.at(-1)?.startsWith('kill')) table = IDLE })
+  await $.tool.call({ tool: 'Bash', command: 'npx playwright test' })
+  expect(lines.at(-1)).toBe('2 headless Chrome processes running')
+  await $.tool.call({ tool: 'Bash', command: 'kill 901 902' })
+  expect(lines.at(-1)).toBeUndefined()
+  expect(lines.length).toBe(2)
 })

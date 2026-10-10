@@ -1,6 +1,6 @@
 {
   "name": "chrome-close",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Allow one headless Chrome at a time: refuse Claude's launches while any headless Chrome or its leftover helpers still run",
   "author": {
     "name": "AnnihilationWizard",

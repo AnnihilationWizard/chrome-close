@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.0.0-green.svg" alt="Version 1.0.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.0.1-green.svg" alt="Version 1.0.1"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://code.claude.com/docs"><img src="https://img.shields.io/badge/Platform-Claude%20Code-D97757.svg" alt="Platform: Claude Code"></a>
   <a href="hooks/register.ts"><img src="https://img.shields.io/badge/Type-Function%20hooks%20mod-6E7681.svg" alt="Function hooks mod"></a>
-  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-9%20passing-3FB950.svg" alt="9 tests passing"></a>
+  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-13%20passing-3FB950.svg" alt="13 tests passing"></a>
 </p>
 
 <p align="center">
@@ -22,6 +22,10 @@
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
+![Side-by-side Claude Code session: on the left three test runs leave headless Chrome processes holding 1.2 GB; on the right the second launch is refused with the PIDs to end, Claude kills them and the next run goes ahead](docs/images/preview.svg)
+
+*Illustration of a session before and after.*
+
 A browser test that closes only Chrome's main process leaves its renderer, GPU and utility helpers running. Each run Claude starts adds more, and memory use climbs. chrome-close checks for a running headless Chrome before Claude runs a command that may start one, refuses the command while any remains, and tells Claude which processes to end.
 
 > [!NOTE]
@@ -31,8 +35,8 @@ A browser test that closes only Chrome's main process leaves its renderer, GPU a
 
 - **One at a time:** A Bash command that may start a headless Chrome is refused while another headless Chrome runs.
 - **Catches leftovers:** Chrome helpers orphaned after their headless browser exited count as running, so they block the next launch until they are ended.
-- **Says what to end:** The refusal lists the PIDs to `kill`, and Claude is told after a command that left processes behind.
-- **Status line:** Shows how many headless Chrome processes remain.
+- **Says what to end:** The refusal lists the PIDs to `kill`, and Claude is told after a command that left processes behind. A command that moved to the background is reported as still running, not as finished.
+- **Status line:** Shows how many headless Chrome processes are running or left, and clears once a `kill` ends them.
 - **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top` and `htop` are never refused.
 - **Your Chrome is left alone:** A desktop Chrome and its helpers are not counted, and the mod never kills anything itself.
 
@@ -91,7 +95,7 @@ A Bash command that contains `--headless`, `headless-shell`, `puppeteer`, `playw
 
 ### What counts as running
 
-From `ps`: a Chrome or Chromium process started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) whose parent is `launchd`/`init` because their browser already exited.
+From `ps`: a Chrome or Chromium executable started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) whose parent is `launchd`/`init` because their browser already exited. A shell that launched Chrome is not counted.
 
 ### Limitations
 
@@ -121,6 +125,7 @@ Run `claude --plugin-dir .` to try changes. In an interactive session the folder
 ```text
 .claude-plugin/   plugin.json manifest and marketplace.json
 hooks/            hooks.json, the hooks module and its tests
+docs/images/      README illustration
 ```
 
 ## Contributing

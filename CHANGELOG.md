@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1] - 2026-10-10
+
+- A shell that launched Chrome (`zsh -c "chrome --headless ..."`) is no longer counted as a headless Chrome process.
+- A command that outran its timeout or was moved to the background is reported as still running, not as finished.
+- The status line no longer repeats the plugin name (`chrome-close: chrome-close: ...`), reads `N headless Chrome processes running` or `left`, and clears after a `kill` ends them.
+- README illustration of a session before and after.
+
 ## [1.0.0] - 2026-10-10
 
 Initial release of chrome-close by AnnihilationWizard.
@@ -15,4 +22,5 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.0.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.1
 [1.0.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.0

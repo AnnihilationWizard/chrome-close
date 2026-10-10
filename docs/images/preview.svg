@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-labelledby="title desc">
+  <title id="title">chrome-close before and after</title>
+  <desc id="desc">Left: without chrome-close, each test run Claude starts leaves headless Chrome processes behind and memory use climbs past 1 GB. Right: with chrome-close, the second launch is refused with the PIDs to end, Claude kills them, the launch runs, and the status line reports what is left.</desc>
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; }
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+    .fg { fill: #e6edf3; }
+    .dim { fill: #8b949e; }
+    .tool { fill: #e6edf3; font-weight: 700; }
+    .dot { fill: #3fb950; }
+    .err { fill: #ff7b72; }
+    .warn { fill: #d29922; }
+    .ok { fill: #3fb950; }
+  </style>
+  <rect width="960" height="560" rx="14" fill="#0d1117"/>
+  <rect x="0.5" y="0.5" width="959" height="559" rx="14" fill="none" stroke="#30363d"/>
+  <circle cx="24" cy="22" r="6" fill="#ff5f57"/>
+  <circle cx="44" cy="22" r="6" fill="#febc2e"/>
+  <circle cx="64" cy="22" r="6" fill="#28c840"/>
+  <line x1="480" y1="44" x2="480" y2="536" stroke="#30363d"/>
+
+  <!-- Before -->
+  <text x="32" y="70" class="label" fill="#f85149">BEFORE</text>
+  <g class="mono">
+    <text x="32" y="106"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="48" y="132" class="dim">⎿  ✓ 12 passed</text>
+    <text x="32" y="174"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="48" y="200" class="dim">⎿  ✓ 12 passed</text>
+    <text x="32" y="242"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="48" y="268" class="dim">⎿  ✓ 12 passed</text>
+
+    <text x="32" y="322" class="dim">Still running after the scripts ended:</text>
+    <text x="48" y="350" class="fg">Google Chrome --headless</text>
+    <text x="300" y="350" class="err">×3</text>
+    <text x="48" y="374" class="fg">Helper --type=gpu-process</text>
+    <text x="300" y="374" class="err">×3</text>
+    <text x="48" y="398" class="fg">Helper --type=utility</text>
+    <text x="300" y="398" class="err">×6</text>
+    <text x="48" y="422" class="fg">Helper --type=renderer</text>
+    <text x="300" y="422" class="err">×9</text>
+  </g>
+  <rect x="32" y="452" width="416" height="12" rx="6" fill="#21262d"/>
+  <rect x="32" y="452" width="392" height="12" rx="6" fill="#f85149"/>
+  <text x="32" y="492" class="mono dim">Memory held by leftovers: <tspan class="err">1.2 GB</tspan>, growing</text>
+
+  <!-- After -->
+  <text x="512" y="70" class="label" fill="#3fb950">AFTER</text>
+  <g class="mono">
+    <text x="512" y="106"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="528" y="132" class="dim">⎿  ✓ 12 passed</text>
+    <text x="553" y="156" class="dim">left 4 headless Chrome processes</text>
+
+    <text x="512" y="198"><tspan class="err">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="528" y="224" class="err">⎿  only one headless Chrome may run</text>
+    <text x="553" y="246" class="err">at a time: kill 75978 76005 …</text>
+
+    <text x="512" y="288"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(kill 75978 76005 76006 76007)</tspan></text>
+
+    <text x="512" y="330"><tspan class="dot">⏺</tspan><tspan class="tool" dx="8">Bash</tspan><tspan class="fg">(node e2e.mjs)</tspan></text>
+    <text x="528" y="356" class="dim">⎿  ✓ 12 passed</text>
+    <text x="553" y="380" class="dim">left 4 headless Chrome processes</text>
+  </g>
+  <rect x="512" y="452" width="416" height="12" rx="6" fill="#21262d"/>
+  <rect x="512" y="452" width="56" height="12" rx="6" fill="#3fb950"/>
+  <text x="512" y="492" class="mono dim">At most one headless Chrome at a time</text>
+  <text x="512" y="420" class="mono"><tspan class="warn">⚠ chrome-close:</tspan><tspan class="dim" dx="8">4 headless Chrome processes left</tspan></text>
+</svg>
