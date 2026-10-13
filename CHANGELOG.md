@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2026-10-13
+
+- A command is no longer split inside quotes, and in PowerShell a part that starts with a quoted string is output, not a launch. Before, `Stop-Process -Id ... -Force; Start-Sleep 2; "headless-shell left: $(...)"`, the mod's own suggested cleanup followed by a report, was refused while a headless Chrome ran.
+- `find` with `-exec`, `-execdir`, `-ok` or `-okdir`, `git bisect run`, `git -c` and `rg --pre` count as launches when they name one, and `awk` and `sed` are no longer read-only. Before, `find . -name 'playwright-test.js' -exec node {} 0 \;` started a second headless Chrome while one ran.
+
 ## [1.1.1] - 2026-10-13
 
 - Reading or searching no longer counts as a launch. A command is split at `;`, `&&`, `||`, `|` and line ends, and a part that starts with a read-only command (`cat`, `grep`, `git`, `Get-Content`, `Select-String`, `Where-Object`, ...) or a process command is skipped. Before, `Get-Content out.txt; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ms-playwright' }` was refused while a headless Chrome ran, because the line contained "playwright" and its first word was not on the allow list.
@@ -35,6 +40,7 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.1.2]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.2
 [1.1.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.1
 [1.1.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.0
 [1.0.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.1

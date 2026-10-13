@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { headlessChrome, isLaunch, parsePs } from './register'
+import { headlessChrome, isLaunch, parsePs, parts } from './register'
 
 const CFT = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
 const HELPER = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Renderer)'
@@ -253,4 +253,49 @@ test('on Windows, a read-only search runs while a headless Chrome runs', async (
   const launch = await $.tool.call({ tool: 'PowerShell', command: 'Get-Content out.txt; npx playwright test' } as never)
   expect(launch.deny).toMatch(/only one headless Chrome/)
   expect(ran).toEqual([`PowerShell: ${read}`])
+})
+
+test('splits a command outside quotes only', () => {
+  expect(parts('a; b && c || d | e\nf').map(p => p.trim())).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
+  expect(parts(`git commit -m "fix; npx playwright test" && ls`).map(p => p.trim())).toEqual([
+    'git commit -m "fix; npx playwright test"',
+    'ls',
+  ])
+  expect(parts(`"left: $(Get-Process x; 1)"; done`).map(p => p.trim())).toEqual(['"left: $(Get-Process x; 1)"', 'done'])
+  expect(parts(`echo \\"a; b`).map(p => p.trim())).toEqual(['echo \\"a', 'b'])
+})
+
+test('in PowerShell, a cleanup followed by a quoted report is not a launch', () => {
+  const command =
+    'Stop-Process -Id 39776,39780 -Force; Start-Sleep 2; "headless-shell left: $((Get-Process chrome-headless-shell -ErrorAction SilentlyContinue).Count)"'
+  expect(isLaunch(command, 'PowerShell')).toBe(false)
+  expect(isLaunch("'--headless is the flag'", 'PowerShell')).toBe(false)
+  // A quoted program is run with `&` in PowerShell, and directly in Bash.
+  expect(isLaunch('& "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --headless=new', 'PowerShell')).toBe(true)
+  expect(isLaunch('"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new', 'Bash')).toBe(true)
+})
+
+test('read-only commands that run other commands are checked', () => {
+  for (const command of [
+    "find . -name 'playwright-test.js' -exec node {} 0 \;",
+    'find . -name "*.spec.ts" -execdir npx playwright test {} +',
+    "find . -ok chrome --headless {} \;",
+    'git bisect run npx playwright test',
+    'git -c alias.t="!npx playwright test" t',
+    'rg --pre ./playwright-pre.sh pattern',
+    "awk 'BEGIN { system(\"node playwright-test.js\") }'",
+    "sed -n '1e npx playwright test' notes.txt",
+  ])
+    expect(isLaunch(command), command).toBe(true)
+  for (const command of ["find . -name 'playwright*.ts'", 'git log --grep=playwright', 'rg playwright src'])
+    expect(isLaunch(command), command).toBe(false)
+})
+
+test('on Windows, the suggested Stop-Process runs with a report after it', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_RUNNING, ran)
+  const command = 'Stop-Process -Id 7010,7020 -Force; Start-Sleep 2; "headless-shell left: $(0)"'
+  const r = await $.tool.call({ tool: 'PowerShell', command } as never)
+  expect(r.deny).toBeUndefined()
+  expect(ran).toEqual([`PowerShell: ${command}`])
 })

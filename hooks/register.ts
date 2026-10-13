@@ -15,7 +15,7 @@ const INSPECT_OR_KILL = new Set([
 ])
 const READ_ONLY = new Set([
   'cat', 'head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg', 'ag', 'ack', 'find', 'ls', 'dir',
-  'echo', 'printf', 'wc', 'sort', 'uniq', 'cut', 'jq', 'diff', 'file', 'stat', 'which', 'where', 'awk', 'sed',
+  'echo', 'printf', 'wc', 'sort', 'uniq', 'cut', 'jq', 'diff', 'file', 'stat', 'which', 'where',
   'git', 'findstr', 'get-content', 'gc', 'type', 'select-string', 'sls', 'get-childitem', 'gci', 'get-item',
   'test-path', 'where-object', '?', 'select-object', 'sort-object', 'measure-object', 'format-table',
   'format-list', 'out-string', 'write-output', 'write-host',
@@ -29,13 +29,56 @@ const firstWord = (part: string) => {
   return (word.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '')
 }
 
-// Whether a command may start a headless Chrome: some part of it, split at
-// `;`, `&&`, `||`, `|` and line ends, names a launch and is not a command
-// that only inspects, ends processes or reads.
-export const isLaunch = (command: string) =>
-  command
-    .split(/\|\||&&|[;|\n]/)
-    .some(part => LAUNCH.test(part) && !INSPECT_OR_KILL.has(firstWord(part)) && !READ_ONLY.has(firstWord(part)))
+// Options that make an otherwise read-only command run another command.
+const RUNS_COMMANDS: Readonly<Record<string, RegExp>> = {
+  find: /\s-(exec|execdir|ok|okdir)\b/,
+  git: /\sbisect\s+run\b|\s-c\s/,
+  rg: /\s--pre\b/,
+}
+
+// The parts of a command, split at `;`, `&&`, `||`, `|` and line ends that
+// are outside quotes, so a quoted message or a PowerShell `"... $(...; ...)"`
+// stays one part.
+export const parts = (command: string): string[] => {
+  const found: string[] = []
+  let part = ''
+  let quote: string | undefined
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]!
+    if (quote !== undefined) {
+      part += c
+      if (quote === '"' && (c === '\\' || c === '`') && i + 1 < command.length) part += command[++i]
+      else if (c === quote) quote = undefined
+    } else if ((c === '\\' || c === '`') && i + 1 < command.length) {
+      // An escaped character (Bash `\`, PowerShell backtick) neither quotes
+      // nor separates.
+      part += c + command[++i]
+    } else if (c === '"' || c === "'") {
+      quote = c
+      part += c
+    } else if (c === ';' || c === '\n' || c === '|' || (c === '&' && command[i + 1] === '&')) {
+      if (command[i + 1] === c) i++
+      found.push(part)
+      part = ''
+    } else part += c
+  }
+  found.push(part)
+  return found
+}
+
+const isLaunchPart = (part: string, shell: string) => {
+  if (!LAUNCH.test(part)) return false
+  // In PowerShell a statement that starts with a string only outputs it; a
+  // quoted program is run with `&` in front.
+  if (shell === 'PowerShell' && /^\s*["']/.test(part)) return false
+  const word = firstWord(part)
+  if (INSPECT_OR_KILL.has(word)) return false
+  return !READ_ONLY.has(word) || (RUNS_COMMANDS[word]?.test(part) ?? false)
+}
+
+// Whether a command may start a headless Chrome: some part of it names a
+// launch and is not a command that only inspects, ends processes or reads.
+export const isLaunch = (command: string, shell = 'Bash') => parts(command).some(part => isLaunchPart(part, shell))
 
 const CHROME = /chrom(e|ium)|headless[_-]shell/i
 
@@ -150,7 +193,7 @@ const guard: Hook<'tool.call'> = async ($, e, next) => {
   if (!SHELLS.has(e.tool)) return next(e)
   const { command, run_in_background } = e as { command?: unknown; run_in_background?: unknown }
   if (typeof command !== 'string') return next(e)
-  const isLaunching = isLaunch(command)
+  const isLaunching = isLaunch(command, e.tool)
   if (!isLaunching && KILL.test(command)) {
     const ran = await next(e)
     if (isShowing) {
