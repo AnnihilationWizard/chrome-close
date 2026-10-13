@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { headlessChrome, parsePs } from './register'
+import { headlessChrome, isLaunch, parsePs } from './register'
 
 const CFT = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
 const HELPER = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Renderer)'
@@ -215,4 +215,42 @@ test('when no process listing works, runs the launch but says it was not checked
   expect(ran).toEqual(['PowerShell: node puppeteer-test.js'])
   expect((r.context ?? []).join('\n')).toMatch(/could not list processes/)
   expect(lines.at(-1)).toBe('cannot list processes; launches are not checked')
+})
+
+test('reads and searches that only mention a launch are not launches', () => {
+  for (const command of [
+    "Get-Content out.txt; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ms-playwright' } | Select-Object ProcessId",
+    'Select-String playwright package.json',
+    'cat playwright.config.ts',
+    'grep -r puppeteer src | head',
+    'ps aux | grep -- --headless',
+    'git commit -m "test: run playwright headless"',
+    'C:\\Windows\\System32\\findstr.exe /s playwright *.json',
+  ])
+    expect(isLaunch(command), command).toBe(false)
+})
+
+test('a launch is found in any part of a command', () => {
+  for (const command of [
+    'npx playwright test',
+    'cat notes.txt; npx playwright test',
+    'cd app && npx playwright test --project=chromium',
+    'kill 901; chrome --headless=new about:blank',
+    'sudo node puppeteer-test.js',
+    'CI=1 npx playwright test',
+    '& "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --headless=new --dump-dom about:blank',
+  ])
+    expect(isLaunch(command), command).toBe(true)
+})
+
+test('on Windows, a read-only search runs while a headless Chrome runs', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_RUNNING, ran)
+  const read =
+    "Get-Content out.txt; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ms-playwright' }"
+  const r = await $.tool.call({ tool: 'PowerShell', command: read } as never)
+  expect(r.deny).toBeUndefined()
+  const launch = await $.tool.call({ tool: 'PowerShell', command: 'Get-Content out.txt; npx playwright test' } as never)
+  expect(launch.deny).toMatch(/only one headless Chrome/)
+  expect(ran).toEqual([`PowerShell: ${read}`])
 })

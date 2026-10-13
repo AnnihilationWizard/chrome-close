@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.0-green.svg" alt="Version 1.1.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.1-green.svg" alt="Version 1.1.1"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://code.claude.com/docs"><img src="https://img.shields.io/badge/Platform-Claude%20Code-D97757.svg" alt="Platform: Claude Code"></a>
   <a href="hooks/register.ts"><img src="https://img.shields.io/badge/Type-Function%20hooks%20mod-6E7681.svg" alt="Function hooks mod"></a>
-  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-19%20passing-3FB950.svg" alt="19 tests passing"></a>
+  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-22%20passing-3FB950.svg" alt="22 tests passing"></a>
 </p>
 
 <p align="center">
@@ -93,7 +93,9 @@ still running (PID 901 902). Wait for it to finish, or end the leftovers first: 
 
 ### What counts as a launch
 
-A Bash or PowerShell command that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
+A Bash or PowerShell command with a part, split at `;`, `&&`, `||`, `|` and line ends, that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`, unless that part starts with a command that only reads, inspects or ends processes. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
+
+Parts that start with these are never launches: `cat`, `head`, `tail`, `less`, `more`, `grep`, `egrep`, `fgrep`, `rg`, `ag`, `ack`, `find`, `ls`, `dir`, `echo`, `printf`, `wc`, `sort`, `uniq`, `cut`, `jq`, `diff`, `file`, `stat`, `which`, `where`, `awk`, `sed`, `git`, `findstr`, `Get-Content`, `type`, `Select-String`, `Get-ChildItem`, `Get-Item`, `Test-Path`, `Where-Object`, `Select-Object`, `Sort-Object`, `Measure-Object`, `Format-Table`, `Format-List`, `Out-String`, `Write-Output`, `Write-Host`, and the cleanup commands below. So `Select-String playwright package.json` runs while a headless Chrome is up, but `cat notes.txt; npx playwright test` is refused.
 
 ### What counts as running
 
@@ -103,7 +105,7 @@ From `ps -axww`, or on Windows from PowerShell's `Get-CimInstance Win32_Process`
 
 - Only commands Claude runs through Bash or PowerShell are checked. Tests you run in another terminal, an IDE or CI are not limited.
 - The mod does not end processes. Leftovers keep their memory until someone kills them, and they block every launch until then.
-- A command that starts Chrome without any of the keywords, such as `npm test`, is not refused beforehand. Leftovers it creates are still reported when it ends.
+- A command that starts Chrome without any of the keywords, such as `npm test`, is not refused beforehand. Leftovers it creates are still reported when it ends. The same holds for a launch run through a read-only command, such as `find . -exec chrome --headless ...` or `git bisect run npx playwright test`.
 - A command run in the background is not checked for leftovers when it returns.
 - If neither `ps` nor PowerShell can list processes, the command runs unchecked rather than blocking the shell; the status line and a note to Claude say so.
 - On Windows, each check starts `powershell.exe`, which is slower than `ps` and delays launch commands. Windows support is covered by tests with recorded listings and has not been run on a Windows machine yet.

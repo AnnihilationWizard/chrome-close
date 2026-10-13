@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2026-10-13
+
+- Reading or searching no longer counts as a launch. A command is split at `;`, `&&`, `||`, `|` and line ends, and a part that starts with a read-only command (`cat`, `grep`, `git`, `Get-Content`, `Select-String`, `Where-Object`, ...) or a process command is skipped. Before, `Get-Content out.txt; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ms-playwright' }` was refused while a headless Chrome ran, because the line contained "playwright" and its first word was not on the allow list.
+- A launch after a cleanup command in the same line, such as `kill 901; chrome --headless`, is now checked instead of passing as a cleanup.
+
 ## [1.1.0] - 2026-10-13
 
 - Works on Windows: when `ps -axww` is missing or is Git Bash's, which rejects `-x`, processes are listed through PowerShell's `Get-CimInstance Win32_Process`. Before, the check failed silently and every launch was allowed.
@@ -30,6 +35,7 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.1.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.1
 [1.1.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.0
 [1.0.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.1
 [1.0.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.0

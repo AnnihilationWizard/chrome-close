@@ -6,10 +6,36 @@ import type { EngineInterface, Hook, Register } from 'claude-code'
 // leftovers.
 const LAUNCH = /--headless|puppeteer|playwright|headless[_-]shell|lighthouse|selenium|chromedp|webdriver/i
 
-// Commands that only look at or end processes: they stay allowed so the
-// leftovers can be cleaned up.
-const INSPECT_OR_KILL =
-  /^\s*(sudo\s+)?(kill|pkill|killall|ps|pgrep|lsof|top|htop|taskkill|tasklist|stop-process|get-process|get-ciminstance|get-wmiobject)\b/i
+// Commands that only look at or end processes, so the leftovers can be found
+// and cleaned up, or only read files and text, so a search for "playwright"
+// is not a launch. Matched against the first word of each part of a command.
+const INSPECT_OR_KILL = new Set([
+  'kill', 'pkill', 'killall', 'ps', 'pgrep', 'lsof', 'top', 'htop',
+  'taskkill', 'tasklist', 'stop-process', 'get-process', 'get-ciminstance', 'get-wmiobject',
+])
+const READ_ONLY = new Set([
+  'cat', 'head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg', 'ag', 'ack', 'find', 'ls', 'dir',
+  'echo', 'printf', 'wc', 'sort', 'uniq', 'cut', 'jq', 'diff', 'file', 'stat', 'which', 'where', 'awk', 'sed',
+  'git', 'findstr', 'get-content', 'gc', 'type', 'select-string', 'sls', 'get-childitem', 'gci', 'get-item',
+  'test-path', 'where-object', '?', 'select-object', 'sort-object', 'measure-object', 'format-table',
+  'format-list', 'out-string', 'write-output', 'write-host',
+])
+
+// The first word of a part of a command, lower-cased, without its folder or
+// a Windows `.exe`, and past a `sudo`.
+const firstWord = (part: string) => {
+  const words = part.trim().replace(/^[({&\s]+/, '').split(/\s+/)
+  const word = (words[0] === 'sudo' ? words[1] : words[0]) ?? ''
+  return (word.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '')
+}
+
+// Whether a command may start a headless Chrome: some part of it, split at
+// `;`, `&&`, `||`, `|` and line ends, names a launch and is not a command
+// that only inspects, ends processes or reads.
+export const isLaunch = (command: string) =>
+  command
+    .split(/\|\||&&|[;|\n]/)
+    .some(part => LAUNCH.test(part) && !INSPECT_OR_KILL.has(firstWord(part)) && !READ_ONLY.has(firstWord(part)))
 
 const CHROME = /chrom(e|ium)|headless[_-]shell/i
 
@@ -124,7 +150,8 @@ const guard: Hook<'tool.call'> = async ($, e, next) => {
   if (!SHELLS.has(e.tool)) return next(e)
   const { command, run_in_background } = e as { command?: unknown; run_in_background?: unknown }
   if (typeof command !== 'string') return next(e)
-  if (KILL.test(command)) {
+  const isLaunching = isLaunch(command)
+  if (!isLaunching && KILL.test(command)) {
     const ran = await next(e)
     if (isShowing) {
       const left = (await running($)) ?? []
@@ -132,7 +159,7 @@ const guard: Hook<'tool.call'> = async ($, e, next) => {
     }
     return ran
   }
-  if (!LAUNCH.test(command) || INSPECT_OR_KILL.test(command)) return next(e)
+  if (!isLaunching) return next(e)
 
   const before = await running($)
   if (before === undefined) {
