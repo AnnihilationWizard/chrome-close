@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.3] - 2026-10-13
+
+- In PowerShell, `\` is a path character, not an escape. Before, `Get-ChildItem C:\dir\; node playwright-test.js` read `\;` as an escaped `;`, so the line stayed one read-only part and a second headless Chrome started while one ran; `Get-Content "C:\logs\"; npx playwright test` read `\"` as an escaped quote the same way.
+- In Bash, a backtick is no longer read as an escape, so `` echo `date`; npx playwright test `` is checked.
+- When a quote is left open, the command is also split without regard to quotes, so a stray quote cannot hide a launch.
+
 ## [1.1.2] - 2026-10-13
 
 - A command is no longer split inside quotes, and in PowerShell a part that starts with a quoted string is output, not a launch. Before, `Stop-Process -Id ... -Force; Start-Sleep 2; "headless-shell left: $(...)"`, the mod's own suggested cleanup followed by a report, was refused while a headless Chrome ran.
@@ -40,6 +46,7 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.1.3]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.3
 [1.1.2]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.2
 [1.1.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.1
 [1.1.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.0

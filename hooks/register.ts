@@ -36,10 +36,15 @@ const RUNS_COMMANDS: Readonly<Record<string, RegExp>> = {
   rg: /\s--pre\b/,
 }
 
+const SEPARATORS = /\|\||&&|[;|\n]/
+
 // The parts of a command, split at `;`, `&&`, `||`, `|` and line ends that
 // are outside quotes, so a quoted message or a PowerShell `"... $(...; ...)"`
-// stays one part.
-export const parts = (command: string): string[] => {
+// stays one part. Bash escapes with `\`; PowerShell with a backtick, where
+// `\` is a plain path character (`Get-ChildItem C:\dir\; node x.js`). A quote
+// left open makes the reading doubtful, so the plain split is added to it.
+export const parts = (command: string, shell = 'Bash'): string[] => {
+  const escape = shell === 'PowerShell' ? '`' : '\\'
   const found: string[] = []
   let part = ''
   let quote: string | undefined
@@ -47,11 +52,10 @@ export const parts = (command: string): string[] => {
     const c = command[i]!
     if (quote !== undefined) {
       part += c
-      if (quote === '"' && (c === '\\' || c === '`') && i + 1 < command.length) part += command[++i]
+      if (quote === '"' && c === escape && i + 1 < command.length) part += command[++i]
       else if (c === quote) quote = undefined
-    } else if ((c === '\\' || c === '`') && i + 1 < command.length) {
-      // An escaped character (Bash `\`, PowerShell backtick) neither quotes
-      // nor separates.
+    } else if (c === escape && i + 1 < command.length) {
+      // An escaped character neither quotes nor separates.
       part += c + command[++i]
     } else if (c === '"' || c === "'") {
       quote = c
@@ -63,7 +67,7 @@ export const parts = (command: string): string[] => {
     } else part += c
   }
   found.push(part)
-  return found
+  return quote === undefined ? found : [...found, ...command.split(SEPARATORS)]
 }
 
 const isLaunchPart = (part: string, shell: string) => {
@@ -78,7 +82,8 @@ const isLaunchPart = (part: string, shell: string) => {
 
 // Whether a command may start a headless Chrome: some part of it names a
 // launch and is not a command that only inspects, ends processes or reads.
-export const isLaunch = (command: string, shell = 'Bash') => parts(command).some(part => isLaunchPart(part, shell))
+export const isLaunch = (command: string, shell = 'Bash') =>
+  parts(command, shell).some(part => isLaunchPart(part, shell))
 
 const CHROME = /chrom(e|ium)|headless[_-]shell/i
 

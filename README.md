@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.2-green.svg" alt="Version 1.1.2"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.3-green.svg" alt="Version 1.1.3"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://code.claude.com/docs"><img src="https://img.shields.io/badge/Platform-Claude%20Code-D97757.svg" alt="Platform: Claude Code"></a>
   <a href="hooks/register.ts"><img src="https://img.shields.io/badge/Type-Function%20hooks%20mod-6E7681.svg" alt="Function hooks mod"></a>
-  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-26%20passing-3FB950.svg" alt="26 tests passing"></a>
+  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-30%20passing-3FB950.svg" alt="30 tests passing"></a>
 </p>
 
 <p align="center">
@@ -93,7 +93,7 @@ still running (PID 901 902). Wait for it to finish, or end the leftovers first: 
 
 ### What counts as a launch
 
-A Bash or PowerShell command with a part, split at `;`, `&&`, `||`, `|` and line ends outside quotes, that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`, unless that part starts with a command that only reads, inspects or ends processes. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
+A Bash or PowerShell command with a part, split at `;`, `&&`, `||`, `|` and line ends outside quotes (Bash escapes with `\`, PowerShell with a backtick; a quote left open is also read without quotes), that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`, unless that part starts with a command that only reads, inspects or ends processes. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
 
 Parts that start with these are never launches: `cat`, `head`, `tail`, `less`, `more`, `grep`, `egrep`, `fgrep`, `rg`, `ag`, `ack`, `find`, `ls`, `dir`, `echo`, `printf`, `wc`, `sort`, `uniq`, `cut`, `jq`, `diff`, `file`, `stat`, `which`, `where`, `git`, `findstr`, `Get-Content`, `type`, `Select-String`, `Get-ChildItem`, `Get-Item`, `Test-Path`, `Where-Object`, `Select-Object`, `Sort-Object`, `Measure-Object`, `Format-Table`, `Format-List`, `Out-String`, `Write-Output`, `Write-Host`, and the cleanup commands below. These still count as launches when they run another command: `find` with `-exec`, `-execdir`, `-ok` or `-okdir`, `git bisect run` or `git -c`, and `rg --pre`. `awk` and `sed` are not read-only, as they can run commands.
 

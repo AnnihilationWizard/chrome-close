@@ -277,9 +277,9 @@ test('in PowerShell, a cleanup followed by a quoted report is not a launch', () 
 
 test('read-only commands that run other commands are checked', () => {
   for (const command of [
-    "find . -name 'playwright-test.js' -exec node {} 0 \;",
+    "find . -name 'playwright-test.js' -exec node {} 0 \\;",
     'find . -name "*.spec.ts" -execdir npx playwright test {} +',
-    "find . -ok chrome --headless {} \;",
+    "find . -ok chrome --headless {} \\;",
     'git bisect run npx playwright test',
     'git -c alias.t="!npx playwright test" t',
     'rg --pre ./playwright-pre.sh pattern',
@@ -298,4 +298,36 @@ test('on Windows, the suggested Stop-Process runs with a report after it', async
   const r = await $.tool.call({ tool: 'PowerShell', command } as never)
   expect(r.deny).toBeUndefined()
   expect(ran).toEqual([`PowerShell: ${command}`])
+})
+
+test('in PowerShell, a backslash before a separator or quote is a path character', () => {
+  const dir = 'Get-ChildItem C:\\work\\pw-fixture\\; node "C:\\work\\pw-fixture\\playwright-test.js" 0'
+  expect(parts(dir, 'PowerShell').map(p => p.trim())).toEqual([
+    'Get-ChildItem C:\\work\\pw-fixture\\',
+    'node "C:\\work\\pw-fixture\\playwright-test.js" 0',
+  ])
+  expect(isLaunch(dir, 'PowerShell')).toBe(true)
+  expect(isLaunch('Get-Content "C:\\logs\\"; npx playwright test', 'PowerShell')).toBe(true)
+  // The backtick is PowerShell's escape: an escaped separator does not split.
+  expect(parts('Write-Output a`;b', 'PowerShell')).toHaveLength(1)
+})
+
+test('in Bash, a backtick is not an escape', () => {
+  expect(isLaunch('echo `date`; npx playwright test')).toBe(true)
+})
+
+test('a quote left open is also read without quotes', () => {
+  expect(isLaunch('cat "notes.txt; npx playwright test')).toBe(true)
+  expect(isLaunch("Get-Content 'a.txt; npx playwright test", 'PowerShell')).toBe(true)
+})
+
+test('on Windows, a path ending in a backslash does not hide a launch', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_RUNNING, ran)
+  const r = await $.tool.call({
+    tool: 'PowerShell',
+    command: 'Get-ChildItem C:\\work\\pw-fixture\\; node "C:\\work\\pw-fixture\\playwright-test.js" 0',
+  } as never)
+  expect(r.deny).toMatch(/only one headless Chrome/)
+  expect(ran).toEqual([])
 })
