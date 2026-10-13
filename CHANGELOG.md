@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0] - 2026-10-13
+
+- Works on Windows: when `ps -axww` is missing or is Git Bash's, which rejects `-x`, processes are listed through PowerShell's `Get-CimInstance Win32_Process`. Before, the check failed silently and every launch was allowed.
+- Checks commands Claude runs with the `PowerShell` tool as well as `Bash`.
+- On Windows, the refusal names `Stop-Process -Id ... -Force` to end the processes, and `taskkill`, `tasklist`, `Stop-Process`, `Get-Process`, `Get-CimInstance` and `Get-WmiObject` are never refused.
+- Chrome helpers whose browser no longer exists count as leftovers on Windows, where they are not re-parented.
+- When no process listing works, the launch still runs, but the status line reads `cannot list processes; launches are not checked` and Claude is told the launch was not checked.
+
 ## [1.0.1] - 2026-10-10
 
 - A shell that launched Chrome (`zsh -c "chrome --headless ..."`) is no longer counted as a headless Chrome process.
@@ -22,5 +30,6 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.1.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.0
 [1.0.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.1
 [1.0.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.0.0

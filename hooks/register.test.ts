@@ -135,3 +135,84 @@ test('a kill that ends the leftovers clears the status line', async ($, on) => {
   expect(lines.at(-1)).toBeUndefined()
   expect(lines.length).toBe(2)
 })
+
+// Windows: Git Bash's `ps` rejects -x, so the listing comes from PowerShell's
+// Win32_Process, one CRLF-ended `pid ppid command` line per process.
+const WIN_CHROME = '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"'
+const cim = (...rows: [number, number, string][]) => rows.map(([pid, ppid, c]) => `${pid} ${ppid} ${c}`).join('\r\n') + '\r\n'
+const WIN_IDLE = cim([4, 0, ''], [6100, 5000, `${WIN_CHROME} --flag-switches-begin`], [6120, 6100, `${WIN_CHROME} --type=renderer`])
+const WIN_RUNNING = cim(
+  [4, 0, ''],
+  [7000, 6900, 'pwsh.exe -NoProfile -Command "& chrome.exe --headless=new about:blank"'],
+  [7010, 7000, `${WIN_CHROME} --headless=new --remote-debugging-port=0`],
+  [7020, 7010, `${WIN_CHROME} --type=gpu-process`],
+)
+const WIN_ORPHANS = cim([4, 0, ''], [7020, 7010, `${WIN_CHROME} --type=gpu-process`], [7030, 7010, `${WIN_CHROME} --type=renderer`])
+
+const OK = { stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
+
+// The engine beneath on Windows: `ps` fails as Git Bash's does, PowerShell
+// lists from `table`, and both shells record what ran.
+const windows = (on: On, table: () => string | undefined, ran: string[]) => {
+  const lines: (string | undefined)[] = []
+  on('ui.status', ($, e) => {
+    lines.push(e.text)
+    return { value: undefined }
+  })
+  on('process.run', ($, e) => {
+    const stdout = e.argv[0] === 'powershell.exe' ? table() : undefined
+    return stdout === undefined
+      ? { value: { ...OK, exitCode: 1, stdout: '', stderr: 'ps: unknown option -- x' } }
+      : { value: { ...OK, exitCode: 0, stdout } }
+  })
+  on('tool.call', ($, e) => {
+    ran.push(`${e.tool}: ${(e as { command?: string }).command}`)
+    return { result: { stdout: 'ok', stderr: '', interrupted: false } } as never
+  })
+  return lines
+}
+
+test('reads a Windows process listing with CRLF line ends', () => {
+  expect(parsePs(WIN_RUNNING).map(p => p.pid)).toEqual([4, 7000, 7010, 7020])
+  expect(headlessChrome(parsePs(WIN_IDLE))).toEqual([])
+  expect(headlessChrome(parsePs(WIN_RUNNING)).map(p => p.pid).sort()).toEqual([7010, 7020])
+})
+
+test('finds Windows helpers whose browser no longer exists', () => {
+  expect(headlessChrome(parsePs(WIN_ORPHANS)).map(p => p.pid).sort()).toEqual([7020, 7030])
+})
+
+test('on Windows, refuses a PowerShell launch while a headless Chrome runs', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_RUNNING, ran)
+  const r = await $.tool.call({ tool: 'PowerShell', command: 'npx playwright test' } as never)
+  expect(r.deny).toMatch(/only one headless Chrome/)
+  expect(r.deny).toMatch(/Stop-Process -Id 7010,7020 -Force/)
+  expect(ran).toEqual([])
+})
+
+test('on Windows, refuses a Bash launch too, listing through PowerShell', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_ORPHANS, ran)
+  const r = await $.tool.call({ tool: 'Bash', command: 'node puppeteer-test.js' })
+  expect(r.deny).toMatch(/7020 7030/)
+  expect(ran).toEqual([])
+})
+
+test('lets PowerShell cleanup run while leftovers remain', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_ORPHANS, ran)
+  await $.tool.call({ tool: 'PowerShell', command: 'Stop-Process -Id 7020,7030 -Force' } as never)
+  await $.tool.call({ tool: 'PowerShell', command: "Get-CimInstance Win32_Process | ? CommandLine -match '--headless'" } as never)
+  expect(ran).toHaveLength(2)
+})
+
+test('when no process listing works, runs the launch but says it was not checked', async ($, on) => {
+  const ran: string[] = []
+  const lines = windows(on, () => undefined, ran)
+  const r = await $.tool.call({ tool: 'PowerShell', command: 'node puppeteer-test.js' } as never)
+  expect(r.deny).toBeUndefined()
+  expect(ran).toEqual(['PowerShell: node puppeteer-test.js'])
+  expect((r.context ?? []).join('\n')).toMatch(/could not list processes/)
+  expect(lines.at(-1)).toBe('cannot list processes; launches are not checked')
+})

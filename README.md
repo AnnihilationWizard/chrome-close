@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.0.1-green.svg" alt="Version 1.0.1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.0-green.svg" alt="Version 1.1.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://code.claude.com/docs"><img src="https://img.shields.io/badge/Platform-Claude%20Code-D97757.svg" alt="Platform: Claude Code"></a>
   <a href="hooks/register.ts"><img src="https://img.shields.io/badge/Type-Function%20hooks%20mod-6E7681.svg" alt="Function hooks mod"></a>
-  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-13%20passing-3FB950.svg" alt="13 tests passing"></a>
+  <a href="hooks/register.test.ts"><img src="https://img.shields.io/badge/Tests-19%20passing-3FB950.svg" alt="19 tests passing"></a>
 </p>
 
 <p align="center">
@@ -33,11 +33,13 @@ A browser test that closes only Chrome's main process leaves its renderer, GPU a
 
 ## Features
 
-- **One at a time:** A Bash command that may start a headless Chrome is refused while another headless Chrome runs.
+- **One at a time:** A Bash or PowerShell command that may start a headless Chrome is refused while another headless Chrome runs.
+- **macOS, Linux and Windows:** Lists processes with `ps`, or on Windows through PowerShell's `Win32_Process` when `ps` is missing or is Git Bash's.
 - **Catches leftovers:** Chrome helpers orphaned after their headless browser exited count as running, so they block the next launch until they are ended.
-- **Says what to end:** The refusal lists the PIDs to `kill`, and Claude is told after a command that left processes behind. A command that moved to the background is reported as still running, not as finished.
+- **Says what to end:** The refusal lists the PIDs and the command to end them (`kill`, or `Stop-Process` on Windows), and Claude is told after a command that left processes behind. A command that moved to the background is reported as still running, not as finished.
 - **Status line:** Shows how many headless Chrome processes are running or left, and clears once a `kill` ends them.
-- **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top` and `htop` are never refused.
+- **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top`, `htop`, `taskkill`, `tasklist`, `Stop-Process`, `Get-Process`, `Get-CimInstance` and `Get-WmiObject` are never refused.
+- **Says when it cannot check:** If no process listing works, the command runs, the status line reads `cannot list processes; launches are not checked`, and Claude is told the launch was not checked.
 - **Your Chrome is left alone:** A desktop Chrome and its helpers are not counted, and the mod never kills anything itself.
 
 | Command Claude runs | While a headless Chrome or leftover helpers run |
@@ -91,19 +93,20 @@ still running (PID 901 902). Wait for it to finish, or end the leftovers first: 
 
 ### What counts as a launch
 
-A Bash command that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
+A Bash or PowerShell command that contains `--headless`, `headless-shell`, `puppeteer`, `playwright`, `selenium`, `lighthouse`, `chromedp` or `webdriver`. A command that only mentions Chrome, such as a path or a commit message, is not a launch.
 
 ### What counts as running
 
-From `ps`: a Chrome or Chromium executable started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) whose parent is `launchd`/`init` because their browser already exited. A shell that launched Chrome is not counted.
+From `ps -axww`, or on Windows from PowerShell's `Get-CimInstance Win32_Process`: a Chrome or Chromium executable started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) left without their browser: re-parented to `launchd`/`init`, or on Windows with a parent that no longer exists. A shell that launched Chrome is not counted.
 
 ### Limitations
 
-- Only commands Claude runs through Bash are checked. Tests you run in another terminal, an IDE or CI are not limited.
+- Only commands Claude runs through Bash or PowerShell are checked. Tests you run in another terminal, an IDE or CI are not limited.
 - The mod does not end processes. Leftovers keep their memory until someone kills them, and they block every launch until then.
 - A command that starts Chrome without any of the keywords, such as `npm test`, is not refused beforehand. Leftovers it creates are still reported when it ends.
 - A command run in the background is not checked for leftovers when it returns.
-- If `ps` fails, the command runs unchecked rather than blocking Bash.
+- If neither `ps` nor PowerShell can list processes, the command runs unchecked rather than blocking the shell; the status line and a note to Claude say so.
+- On Windows, each check starts `powershell.exe`, which is slower than `ps` and delays launch commands. Windows support is covered by tests with recorded listings and has not been run on a Windows machine yet.
 
 ## Development
 

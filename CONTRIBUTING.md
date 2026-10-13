@@ -8,7 +8,8 @@ Use the [issue tracker](https://github.com/AnnihilationWizard/chrome-close/issue
 
 - The chrome-close version, Claude Code version (`claude --version`) and operating system.
 - The command Claude ran, and whether it was refused or let through when you expected the other.
-- The matching `ps -axww -o pid=,ppid=,command=` lines for the Chrome processes involved, with private paths removed.
+- The matching process lines for the Chrome processes involved, with private paths removed: `ps -axww -o pid=,ppid=,command=` on macOS and Linux, or on Windows `Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }` in PowerShell.
+- The shell Claude used: Bash (and which one, such as Git Bash) or PowerShell.
 - Any transcript line that names `chrome-close`.
 
 Never paste source code, file contents or paths you are not allowed to share. For security concerns, follow [SECURITY.md](SECURITY.md).

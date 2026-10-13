@@ -1,15 +1,15 @@
 # Security Notes
 
-chrome-close only decides whether Claude Code runs a Bash command that may start a headless Chrome. These notes describe what it can reach; they do not establish a support SLA.
+chrome-close only decides whether Claude Code runs a Bash or PowerShell command that may start a headless Chrome. These notes describe what it can reach; they do not establish a support SLA.
 
 ## What the mod does
 
-- It hooks `tool.call` for `Bash` and reads the command text Claude is about to run.
-- When the command may start a headless Chrome, it runs `ps -axww -o pid=,ppid=,command=` as your user, before and after the command, to list running processes.
+- It hooks `tool.call` and, for the `Bash` and `PowerShell` tools only, reads the command text Claude is about to run.
+- When the command may start a headless Chrome, it runs `ps -axww -o pid=,ppid=,command=` as your user, before and after the command, to list running processes. Where that fails, as on Windows, it runs `powershell.exe -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | ..."` instead.
 - It refuses the command or adds a note for Claude, and sets a status line entry.
 - It does not end processes, read or write files, make network requests or change settings.
 
-The `ps` output includes the full command line of every process you can see. The mod keeps only the PIDs of headless Chrome processes and puts them in the text Claude reads.
+The process listing includes the full command line of every process you can see. The mod keeps only the PIDs of headless Chrome processes and puts them in the text Claude reads.
 
 It is a guard for commands Claude runs, not a sandbox: a launch without a recognised keyword, or Chrome started outside Claude Code, is not stopped.
 
