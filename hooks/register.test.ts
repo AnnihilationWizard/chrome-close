@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { headlessChrome, isLaunch, parsePs, parts } from './register'
+import { CIM, headlessChrome, isLaunch, parsePs, parts } from './register'
 
 const CFT = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
 const HELPER = '/Users/me/.cache/puppeteer/chrome/mac-131/Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Renderer)'
@@ -176,6 +176,24 @@ test('reads a Windows process listing with CRLF line ends', () => {
   expect(parsePs(WIN_RUNNING).map(p => p.pid)).toEqual([4, 7000, 7010, 7020])
   expect(headlessChrome(parsePs(WIN_IDLE))).toEqual([])
   expect(headlessChrome(parsePs(WIN_RUNNING)).map(p => p.pid).sort()).toEqual([7010, 7020])
+})
+
+test('on Windows, the listing is written as UTF-8 and read with non-ASCII paths', async ($, on) => {
+  const argvs: string[][] = []
+  const PROFILE = 'C:\\Users\\王小明\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe'
+  on('process.run', ($, e) => {
+    argvs.push([...e.argv])
+    return e.argv[0] === 'powershell.exe'
+      ? { value: { ...OK, exitCode: 0, stdout: cim([7010, 6900, `${PROFILE} --headless=new`]) } }
+      : { value: { ...OK, exitCode: 1, stdout: '', stderr: 'ps: unknown option -- x' } }
+  })
+  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }) as never)
+  const r = await $.tool.call({ tool: 'PowerShell', command: 'npx playwright test' } as never)
+  expect(r.deny).toMatch(/PID 7010/)
+  const command = argvs.find(a => a[0] === 'powershell.exe')?.at(-1) ?? ''
+  expect(command.startsWith('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ')).toBe(true)
+  expect(CIM.at(-1)).toBe(command)
+  expect(parsePs(cim([7010, 6900, PROFILE]))[0]?.command).toBe(PROFILE)
 })
 
 test('finds Windows helpers whose browser no longer exists', () => {

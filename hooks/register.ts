@@ -128,14 +128,17 @@ export const headlessChrome = (procs: readonly Proc[]): Proc[] => {
 }
 
 // How processes are listed: `ps` on macOS and Linux; on Windows, where `ps`
-// is missing or is Git Bash's (no -x), PowerShell's Win32_Process.
+// is missing or is Git Bash's (no -x), PowerShell's Win32_Process. Windows
+// PowerShell 5.1 writes piped output in the OEM code page (cp950 on zh-TW),
+// which garbles non-ASCII command lines, so it is told to write UTF-8.
 export const PS: readonly string[] = ['ps', '-axww', '-o', 'pid=,ppid=,command=']
 export const CIM: readonly string[] = [
   'powershell.exe',
   '-NoProfile',
   '-NonInteractive',
   '-Command',
-  'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }',
+  '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ' +
+    'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }',
 ]
 
 // The listing that worked last, tried first next time.
