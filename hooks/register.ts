@@ -85,7 +85,11 @@ const isLaunchPart = (part: string, shell: string) => {
 export const isLaunch = (command: string, shell = 'Bash') =>
   parts(command, shell).some(part => isLaunchPart(part, shell))
 
-const CHROME = /chrom(e|ium)|headless[_-]shell/i
+// Chrome, Chromium, chrome-headless-shell, and Microsoft Edge, which Playwright
+// runs for `channel: 'msedge'`. Not WebView2 (msedgewebview2.exe), the Edge
+// that Teams, Widgets and other Windows apps embed: its helpers can outlive
+// their parent, and they are not a headless browser.
+const CHROME = /chrom(e|ium)|headless[_-]shell|msedge(?!webview2)|microsoft edge/i
 
 export type Proc = { pid: number; ppid: number; command: string }
 

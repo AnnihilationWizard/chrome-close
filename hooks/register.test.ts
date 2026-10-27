@@ -172,6 +172,37 @@ const windows = (on: On, table: () => string | undefined, ran: string[]) => {
   return lines
 }
 
+// Microsoft Edge, which Playwright runs for `channel: 'msedge'`, and WebView2,
+// the Edge that Windows apps embed.
+const WIN_EDGE = '"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"'
+const WEBVIEW2 = '"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\130.0.2849.80\\msedgewebview2.exe"'
+const MAC_EDGE = '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+const MAC_EDGE_HELPER = '/Applications/Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Helpers/Microsoft Edge Helper (Renderer).app/Contents/MacOS/Microsoft Edge Helper (Renderer)'
+
+test('finds a headless Microsoft Edge and its helpers, not a desktop Edge', () => {
+  const win = cim(
+    [8000, 5000, `${WIN_EDGE} --profile-directory=Default`],
+    [8010, 8000, `${WIN_EDGE} --type=renderer`],
+    [8100, 6900, `${WIN_EDGE} --headless --remote-debugging-pipe about:blank`],
+    [8110, 8100, `${WIN_EDGE} --type=gpu-process`],
+  )
+  expect(headlessChrome(parsePs(win)).map(p => p.pid).sort()).toEqual([8100, 8110])
+  const mac = ps([600, 1, MAC_EDGE], [601, 600, `${MAC_EDGE_HELPER} --type=renderer`], [910, 1, `${MAC_EDGE_HELPER} --type=renderer`])
+  expect(headlessChrome(parsePs(mac)).map(p => p.pid)).toEqual([910])
+})
+
+test('does not count WebView2, even when its helpers outlive their parent', () => {
+  const procs = parsePs(
+    cim(
+      [9000, 8900, `${WEBVIEW2} --embedded-browser-webview=1 --webview-exe-name=ms-teams.exe`],
+      [9010, 9000, `${WEBVIEW2} --type=renderer --webview-exe-name=ms-teams.exe`],
+      [9020, 8950, `${WEBVIEW2} --type=renderer --webview-exe-name=Widgets.exe`],
+      [9030, 8950, `${WEBVIEW2} --type=gpu-process --webview-exe-name=Widgets.exe`],
+    ),
+  )
+  expect(headlessChrome(procs)).toEqual([])
+})
+
 test('reads a Windows process listing with CRLF line ends', () => {
   expect(parsePs(WIN_RUNNING).map(p => p.pid)).toEqual([4, 7000, 7010, 7020])
   expect(headlessChrome(parsePs(WIN_IDLE))).toEqual([])

@@ -40,7 +40,7 @@ A browser test that closes only Chrome's main process leaves its renderer, GPU a
 - **Status line:** Shows how many headless Chrome processes are running or left, and clears once a `kill` ends them.
 - **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top`, `htop`, `taskkill`, `tasklist`, `Stop-Process`, `Get-Process`, `Get-CimInstance` and `Get-WmiObject` are never refused.
 - **Says when it cannot check:** If no process listing works, the command runs, the status line reads `cannot list processes; launches are not checked`, and Claude is told the launch was not checked.
-- **Your Chrome is left alone:** A desktop Chrome and its helpers are not counted, and the mod never kills anything itself.
+- **Your Chrome is left alone:** A desktop Chrome or Edge and its helpers are not counted, and the mod never kills anything itself.
 
 | Command Claude runs | While a headless Chrome or leftover helpers run |
 | --- | --- |
@@ -101,7 +101,7 @@ In PowerShell, a part that starts with a quoted string only outputs it, so it is
 
 ### What counts as running
 
-From `ps -axww`, or on Windows from PowerShell's `Get-CimInstance Win32_Process`: a Chrome or Chromium executable started with `--headless`, every process beneath it, and Chrome helper processes (`--type=renderer`, `gpu-process`, ...) left without their browser: re-parented to `launchd`/`init`, or on Windows with a parent that no longer exists. A shell that launched Chrome is not counted.
+From `ps -axww`, or on Windows from PowerShell's `Get-CimInstance Win32_Process`: a Chrome, Chromium or Microsoft Edge executable started with `--headless`, every process beneath it, and their helper processes (`--type=renderer`, `gpu-process`, ...) left without their browser: re-parented to `launchd`/`init`, or on Windows with a parent that no longer exists. Edge counts because Playwright runs it for `channel: 'msedge'`. A shell that launched Chrome is not counted, and neither is WebView2 (`msedgewebview2.exe`), the Edge that Windows apps such as Teams embed.
 
 ### Limitations
 
