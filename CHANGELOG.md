@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0] - 2026-10-27
+
+- A headless Microsoft Edge counts like a headless Chrome, as Playwright runs Edge for `channel: 'msedge'`: `msedge.exe --headless`, `Microsoft Edge` on macOS, every process beneath it, and its helpers left without their browser. WebView2 (`msedgewebview2.exe`), the Edge that Teams, Widgets and other Windows apps embed, is not counted, and neither is a desktop Edge.
+- In Git Bash on Windows, the refusal and the leftover note name `taskkill //F //PID ...` to end the processes. Before, they named `Stop-Process`, which Git Bash does not have. The doubled slashes keep MSYS from reading `/F` as a path. PowerShell still gets `Stop-Process -Id ... -Force`, and macOS and Linux `kill`.
+- On Windows, processes are listed as UTF-8. Before, Windows PowerShell 5.1 wrote the listing in the OEM code page, such as cp950 on zh-TW, so command lines with non-ASCII paths came back garbled.
+
 ## [1.1.3] - 2026-10-13
 
 - In PowerShell, `\` is a path character, not an escape. Before, `Get-ChildItem C:\dir\; node playwright-test.js` read `\;` as an escaped `;`, so the line stayed one read-only part and a second headless Chrome started while one ran; `Get-Content "C:\logs\"; npx playwright test` read `\"` as an escaped quote the same way.
@@ -46,6 +52,7 @@ Initial release of chrome-close by AnnihilationWizard.
 
 Built on Claude Code's early-access function-hooks mod API.
 
+[1.2.0]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.2.0
 [1.1.3]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.3
 [1.1.2]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.2
 [1.1.1]: https://github.com/AnnihilationWizard/chrome-close/releases/tag/v1.1.1
