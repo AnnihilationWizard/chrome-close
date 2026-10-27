@@ -36,7 +36,7 @@ A browser test that closes only Chrome's main process leaves its renderer, GPU a
 - **One at a time:** A Bash or PowerShell command that may start a headless Chrome is refused while another headless Chrome runs.
 - **macOS, Linux and Windows:** Lists processes with `ps`, or on Windows through PowerShell's `Win32_Process` when `ps` is missing or is Git Bash's.
 - **Catches leftovers:** Chrome helpers orphaned after their headless browser exited count as running, so they block the next launch until they are ended.
-- **Says what to end:** The refusal lists the PIDs and the command to end them (`kill`, or `Stop-Process` on Windows), and Claude is told after a command that left processes behind. A command that moved to the background is reported as still running, not as finished.
+- **Says what to end:** The refusal lists the PIDs and the command to end them in the shell Claude used: `kill`, `Stop-Process` in PowerShell, or `taskkill //F //PID ...` in Git Bash on Windows, and Claude is told after a command that left processes behind. A command that moved to the background is reported as still running, not as finished.
 - **Status line:** Shows how many headless Chrome processes are running or left, and clears once a `kill` ends them.
 - **Cleanup always runs:** `kill`, `pkill`, `killall`, `ps`, `pgrep`, `lsof`, `top`, `htop`, `taskkill`, `tasklist`, `Stop-Process`, `Get-Process`, `Get-CimInstance` and `Get-WmiObject` are never refused.
 - **Says when it cannot check:** If no process listing works, the command runs, the status line reads `cannot list processes; launches are not checked`, and Claude is told the launch was not checked.

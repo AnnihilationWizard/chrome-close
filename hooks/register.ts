@@ -163,11 +163,16 @@ const running = async ($: EngineInterface): Promise<Proc[] | undefined> => {
   return undefined
 }
 
-// The command that ends them, in the shell whose listing found them.
-const killHint = (procs: readonly Proc[]) =>
-  lister === CIM
-    ? `Stop-Process -Id ${procs.map(p => p.pid).join(',')} -Force`
-    : `kill ${procs.map(p => p.pid).join(' ')}`
+// The command that ends them, in the shell that ran the command: PowerShell's
+// Stop-Process; on Windows, Git Bash, which has no Stop-Process and whose MSYS
+// layer turns a `/F` argument into a path, so taskkill's options take `//`;
+// elsewhere `kill`.
+const killHint = (procs: readonly Proc[], shell: string) => {
+  const pids = procs.map(p => p.pid)
+  if (shell === 'PowerShell') return `Stop-Process -Id ${pids.join(',')} -Force`
+  if (lister === CIM) return `taskkill //F ${pids.map(pid => `//PID ${pid}`).join(' ')}`
+  return `kill ${pids.join(' ')}`
+}
 
 const describe = (procs: readonly Proc[]) =>
   `${procs.length} headless Chrome process(es) still running (PID ${procs
@@ -229,7 +234,7 @@ const guard: Hook<'tool.call'> = async ($, e, next) => {
     return {
       deny:
         `${$.plugin.name}: only one headless Chrome may run at a time, and ${describe(before)}. ` +
-        `Wait for it to finish, or end the leftovers first: ${killHint(before)} ` +
+        `Wait for it to finish, or end the leftovers first: ${killHint(before, e.tool)} ` +
         `(the whole process group, not only the browser's main process), then run this again.`,
     }
   }
@@ -252,9 +257,9 @@ const guard: Hook<'tool.call'> = async ($, e, next) => {
       ...(ran.context ?? []),
       isBackgrounded
         ? `${$.plugin.name}: this command moved to the background and is still running, with ${describe(after)}. ` +
-          `The next headless Chrome launch is refused until they end; if the command hangs, ${killHint(after)}.`
+          `The next headless Chrome launch is refused until they end; if the command hangs, ${killHint(after, e.tool)}.`
         : `${$.plugin.name}: this command finished but left ${describe(after)}. ` +
-          `End them (${killHint(after)}) before starting another headless Chrome; ` +
+          `End them (${killHint(after, e.tool)}) before starting another headless Chrome; ` +
           `the next launch is refused while any remain.`,
     ],
   }

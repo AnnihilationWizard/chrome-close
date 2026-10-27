@@ -199,6 +199,16 @@ test('on Windows, refuses a Bash launch too, listing through PowerShell', async 
   expect(ran).toEqual([])
 })
 
+test('on Windows, Bash is told to use taskkill with MSYS-safe options, not Stop-Process', async ($, on) => {
+  const ran: string[] = []
+  windows(on, () => WIN_ORPHANS, ran)
+  const r = await $.tool.call({ tool: 'Bash', command: 'npx playwright test' })
+  expect(r.deny).toMatch(/taskkill \/\/F \/\/PID 7020 \/\/PID 7030/)
+  expect(r.deny).not.toMatch(/Stop-Process/)
+  await $.tool.call({ tool: 'Bash', command: 'taskkill //F //PID 7020 //PID 7030' })
+  expect(ran).toEqual(['Bash: taskkill //F //PID 7020 //PID 7030'])
+})
+
 test('lets PowerShell cleanup run while leftovers remain', async ($, on) => {
   const ran: string[] = []
   windows(on, () => WIN_ORPHANS, ran)
